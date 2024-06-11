@@ -66,14 +66,22 @@ def procesar(directorio:str, nombres_archivos:list[str], n:int) -> list[tuple[st
     del directorio(nombres_archivos), y un entero (n) que es el tamaño de los n_grama a procesar.
 
     POSTCONDICIONES:
-        -Devuelve la lista procesados.
+        -Devuelve la lista procesados. En caso de haber un error en la apertura de algún archivo
+        devuelve una lista vacía.
     '''
     procesados=[]
     for archivo in nombres_archivos:
         if archivo[len(archivo)-4:]=='.txt':
             ruta=os.path.join(directorio, archivo)
-            procesados.append((archivo, detector_de_plagios.inicializar_archivo(ruta, n)))
+            n_gramas=detector_de_plagios.inicializar_archivo(ruta, n)
+            if len(n_gramas)==0:
+                return []
+            procesados.append((archivo, n_gramas))
     return procesados
+
+
+INDICE_MINIMO=0.01
+INDICE_SOSPECHOSO=0.15
 
 def analizar_procesados(procesados:list[tuple[str, dict[tuple[str, ...], int]]]) -> tuple[list[tuple[str, str]], list[str]]:
     '''
@@ -98,10 +106,10 @@ def analizar_procesados(procesados:list[tuple[str, dict[tuple[str, ...], int]]])
     resultados_mayores_indice1=[]
     for i in range(len(procesados)):
         for j in range(i+1, len(procesados)):
-            indice=detector_de_plagios.jaccard(procesados[i][1], procesados[j][1])
-            if 0.01<=indice:
+            indice=detector_de_plagios.jaccard(procesados[i][0], procesados[i][1], procesados[j][0], procesados[j][1])
+            if INDICE_MINIMO<=indice:
                 resultados_mayores_indice1.append(f'{procesados[i][0]},{procesados[j][0]},{str(indice*100)[:5]}')
-            if indice>0.15:
+            if indice>INDICE_SOSPECHOSO:
                 resultados_sospechosos.append((f'{procesados[i][0]} vs {procesados[j][0]}',str(indice*100)[:5]))
     return resultados_sospechosos, resultados_mayores_indice1
 
@@ -154,6 +162,8 @@ def main():
             return
         n=validar_n()
         procesados=procesar(directorio, nombres_archivos, n)
+        if len(procesados)==0: #No se pudo abrir un archivo del directorio
+            continue
         resultados_sospechosos, resultados_mayores_indice1=analizar_procesados(procesados)
         mostrar_por_pantalla(resultados_sospechosos)
         if len(resultados_mayores_indice1)>0:

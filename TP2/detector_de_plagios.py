@@ -2,6 +2,8 @@
 Lógica del programa detector de plagios.
 '''
 
+PALABRAS_PROHIBIDAS=",.!¡¿?;:()[]}{%#$/&=+-*-_<>"
+
 def limpiar_palabra(palabra:str) -> str:
     '''
     Procesa una cadena eliminando los signos de puntuación, y pasando 
@@ -13,10 +15,10 @@ def limpiar_palabra(palabra:str) -> str:
     POSTCONDICIONES: 
         - La función devuelve la cadena palabra procesada.
     '''
-    palabras_prohibidas=",.!¡¿?;:()[]}{%#$/&=+-*-_<>"
+    
     palabra_nueva=""
     for caracter in palabra:
-        if caracter in palabras_prohibidas:
+        if caracter in PALABRAS_PROHIBIDAS:
             continue
         palabra_nueva+=caracter
     return palabra_nueva.lower()
@@ -62,17 +64,25 @@ def inicializar_archivo(ruta:str, n:int) -> dict[tuple[str, ...], int]:
     similitudes.
     
     POSTCONDICIONES:
-        -Devuelve el diccionario completo de n_gramas para el archivo dado.
+        -Devuelve el diccionario completo de n_gramas para el archivo dado. En caso
+        de haber un error en la apertura del archivo, devuelve un diccionario vacío.
     '''
-    with open(ruta, 'r') as archivo:
-        n_gramas={}
-        n_grama=[]
-        for linea in archivo:
-            palabras_linea=linea.strip().split()
-            cargar_n_gramas(palabras_linea, n, n_gramas, n_grama)
+    try:
+        with open(ruta, 'r') as archivo:
+            n_gramas={}
+            n_grama=[]
+            for linea in archivo:
+                palabras_linea=linea.strip().split()
+                cargar_n_gramas(palabras_linea, n, n_gramas, n_grama)
+    except FileNotFoundError:
+        print(f'El archivo {ruta} ya no existe.')
+        return {}
+    except IOError:
+        print(f'No se pudo abrir el archivo {ruta}')
+        return {}
     return n_gramas
 
-def jaccard(A: dict[tuple[str, ...], int], B: dict[tuple[str, ...], int]) -> float:
+def jaccard(ruta_A:str, A: dict[tuple[str, ...], int], ruta_B:str, B: dict[tuple[str, ...], int], cardinalidades:dict={}) -> float:
     """
     Devuelve el índice de Jaccard que representa la similitud entre dos
     textos mediante el procesado a través de n_gramas de longitud n de cada
@@ -80,15 +90,30 @@ def jaccard(A: dict[tuple[str, ...], int], B: dict[tuple[str, ...], int]) -> flo
 
     PRECONDICIONES:
         -Recibe dos diccionarios cuyas claves son n-gramas y sus valores
-    asociados, las apariciones totales en un texto.
+    asociados, las apariciones totales en un texto; y las rutas del archivo 
+    de cada diccionario.
     
     POSTCONDICIONES:
         -Devuelve el índice de Jaccard como tipo de dato float.
     """
     interseccion=0
-    suma=sum(A.values())+sum(B.values())
-    claves_comunes= set(A.keys()).intersection(set(B.keys()))
-    for clave in claves_comunes:
-        interseccion+=A[clave]+B[clave]  
+
+    if  ruta_A in cardinalidades:
+        cardinalidad_A=cardinalidades[ruta_A]
+    else:
+        cardinalidad_A=sum(A.values())
+        cardinalidades[ruta_A]=cardinalidad_A
+    
+    if  ruta_B in cardinalidades:
+        cardinalidad_B=cardinalidades[ruta_B]
+    else:
+        cardinalidad_B=sum(B.values())
+        cardinalidades[ruta_B]=cardinalidad_B
+    
+    suma=cardinalidad_A+cardinalidad_B
+    
+    for n_grama in A:
+        if n_grama in B:
+            interseccion+=(A[n_grama]+B[n_grama])
     indice=interseccion/suma
     return indice
